@@ -1,14 +1,36 @@
 # roles/mariadb/tasks/install.yml
 ---
 
-- name: Add official MariaDB repository
+- name: '[Fedora/RedHat] Add official MariaDB repository'
   template:
     src: etc_yum.repos.d_mariadb.repo.j2
     dest: /etc/yum.repos.d/MariaDB.repo
+  when: ansible_os_family in ['RedHat', 'Fedora']
+  tags: mariadb
+
+- block:
+
+  - name: '[Debian] Download trusted MariaDB keyring'
+    get_url:
+      url: '{{ mariadb_keyring_src }}'
+      dest: /etc/apt/trusted.gpg.d/
+      checksum: 'sha256:{{ mariadb_keyring_src_sha256 }}'
+
+  - name: '[Debian] Add official MariaDB repository'
+    apt_repository:
+      repo: '{{ mariadb_mirror }}'
+      state: present
+
+  - name: '[Debian] Set package preference'
+    template:
+      src: etc_apt_preferences.d_mariadb.pref.j2
+      dest: /etc/apt/preferences.d/maria.pref
+
+  when: ansible_os_family in ['Debian']
   tags: mariadb
 
 - name: Install packages
   package:
-    name: "{{ mariadb_packages }}"
-    state: installed
+    name: '{{ mariadb_packages }}'
+    state: latest
   tags: mariadb
